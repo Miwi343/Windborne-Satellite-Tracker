@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windborne Constellation</title>
+    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Widgets/widgets.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', monospace;
+            overflow: hidden; 
+            background: #000;
+            color: #fff;
+        }
+        
+        #cesiumContainer { 
+            width: 100vw; 
+            height: 100vh; 
+        }
+        
+        /* Minimal UI */
+        .overlay {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            padding: 15px;
+            font-size: 13px;
+            z-index: 1000;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            font-family: 'Courier New', monospace;
+        }
+        
+        .title {
+            top: 20px;
+            left: 20px;
+        }
+        
+        .title h1 {
+            font-size: 16px;
+            margin-bottom: 5px;
+            color: #0f0;
+            letter-spacing: 2px;
+        }
+        
+        .title p {
+            font-size: 11px;
+            color: #0f0;
+            opacity: 0.7;
+        }
+        
+        .stats {
+            top: 20px;
+            right: 20px;
+            min-width: 200px;
+        }
+        
+        .stat-row {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .stat-label {
+            color: #0f0;
+            opacity: 0.7;
+        }
+        
+        .stat-value {
+            color: #0f0;
+            font-weight: bold;
+        }
+        
+        .controls {
+            bottom: 20px;
+            left: 20px;
+        }
+        
+        .btn {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 8px 15px;
+            margin-right: 8px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .legend {
+            bottom: 20px;
+            right: 20px;
+            font-size: 11px;
+        }
+        
+        .legend-item {
+            margin-bottom: 5px;
+        }
+        
+        .legend-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2000;
+            color: #0f0;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(0, 255, 0, 0.1);
+            border-top: 3px solid #0f0;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 15px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            color: #0f0;
+            font-size: 11px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+    
+    <div class="overlay title">
+        <h1>WINDBORNE CONSTELLATION</h1>
+        <p>REAL-TIME GLOBAL MONITORING</p>
+    </div>
+    
+    <div class="overlay stats">
+        <div class="stat-row">
+            <span class="stat-label">BALLOONS:</span>
+            <span class="stat-value" id="balloonCount">---</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">EVENTS:</span>
+            <span class="stat-value" id="eventCount">---</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">STATUS:</span>
+            <span class="stat-value" id="status">LOADING</span>
+        </div>
+    </div>
+    
+    <div class="overlay controls">
+        <button class="btn" onclick="refreshData()">REFRESH</button>
+        <button class="btn" onclick="resetView()">RESET</button>
+    </div>
+    
+    <div class="overlay legend">
+        <div class="legend-item">
+            <span class="legend-dot" style="background: #0ff; box-shadow: 0 0 5px #0ff;"></span>
+            <span>YOUR LOCATION</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background: #0f0; box-shadow: 0 0 5px #0f0;"></span>
+            <span>BALLOONS</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background: #f00; box-shadow: 0 0 5px #f00;"></span>
+            <span>WILDFIRES</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background: #f80; box-shadow: 0 0 5px #f80;"></span>
+            <span>VOLCANOES</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background: #80f; box-shadow: 0 0 5px #80f;"></span>
+            <span>STORMS</span>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>INITIALIZING...</p>
+    </div>
+    
+    <div class="status" id="lastUpdate">
+        LAST UPDATE: --:--:--
+    </div>
+    
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Cesium.js"></script>
+    <script>
+        // Cesium access token
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE1OWUxNy1mMWZiLTQzYjYtYTQ0OS1kMWFjYmFkNjc5YzciLCJpZCI6NTc3MzMsImlhdCI6MTYyNzg0NTE4Mn0.XcKpgANiY19MC4bdFUXMVEBToBmqS8kuYpUlxJHYZxk';
+        
+        // Initialize viewer with better Earth imagery
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            imageryProvider: Cesium.TileMapServiceImageryProvider.fromUrl(
+                Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
+            ),
+            baseLayerPicker: false,
+            geocoder: false,
+            homeButton: false,
+            sceneModePicker: false,
+            navigationHelpButton: false,
+            animation: false,
+            timeline: false,
+            fullscreenButton: false,
+            vrButton: false,
+            creditContainer: document.createElement('div')
+        });
+        
+        // Dark space background with stars
+        viewer.scene.backgroundColor = Cesium.Color.BLACK;
+        viewer.scene.globe.enableLighting = true;
+        viewer.scene.skyBox = new Cesium.SkyBox({
+            sources: {
+                positiveX: 'https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_px.jpg',
+                negativeX: 'https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_mx.jpg',
+                positiveY: 'https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_py.jpg',
+                negativeY: 'https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_my.jpg',
+                positiveZ: 'https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_pz.jpg',
+                negativeZ: 'https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_mz.jpg'
+            }
+        });
+        
+        // Color mapping
+        const COLORS = {
+            'Wildfires': Cesium.Color.RED,
+            'Volcanoes': Cesium.Color.ORANGE,
+            'Severe Storms': Cesium.Color.fromCssColorString('#8800ff'),
+            'Sea and Lake Ice': Cesium.Color.CYAN,
+            'default': Cesium.Color.YELLOW
+        };
+        
+        // Store user location
+        let userLocation = null;
+        
+        // Add user location marker
+        function addUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lon: position.coords.longitude
+                        };
+                        displayUserLocation();
+                    },
+                    (error) => {
+                        console.log('Location access denied or unavailable:', error.message);
+                    },
+                    {
+                        enableHighAccuracy: false,
+                        timeout: 5000,
+                        maximumAge: 0
+                    }
+                );
+            }
+        }
+        
+        // Display user location on globe
+        function displayUserLocation() {
+            if (!userLocation) return;
+            
+            viewer.entities.add({
+                name: 'Your Location',
+                position: Cesium.Cartesian3.fromDegrees(userLocation.lon, userLocation.lat),
+                point: {
+                    pixelSize: 12,
+                    color: Cesium.Color.CYAN,
+                    outlineColor: Cesium.Color.WHITE,
+                    outlineWidth: 2
+                },
+                label: {
+                    text: 'YOU',
+                    font: '12px Courier New',
+                    fillColor: Cesium.Color.CYAN,
+                    outlineColor: Cesium.Color.BLACK,
+                    outlineWidth: 2,
+                    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                    pixelOffset: new Cesium.Cartesian2(0, -15)
+                },
+                description: `Your Location: ${userLocation.lat.toFixed(4)}°, ${userLocation.lon.toFixed(4)}°`
+            });
+        }
+        
+        // Load and visualize data
+        async function loadData() {
+            try {
+                document.getElementById('status').textContent = 'LOADING';
+                
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load');
+                }
+                
+                // Clear existing entities
+                viewer.entities.removeAll();
+                
+                // Re-add user location if available
+                displayUserLocation();
+                
+                // Add balloons
+                data.balloons.forEach(balloon => {
+                    viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(
+                            balloon.lon,
+                            balloon.lat,
+                            balloon.alt_km * 1000 * 100  // Exaggerate altitude
+                        ),
+                        point: {
+                            pixelSize: 4,
+                            color: Cesium.Color.LIME,
+                            outlineColor: Cesium.Color.BLACK,
+                            outlineWidth: 1
+                        }
+                    });
+                });
+                
+                // Add events
+                data.events.forEach(event => {
+                    const color = COLORS[event.category] || COLORS.default;
+                    
+                    viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(event.lon, event.lat),
+                        point: {
+                            pixelSize: 8,
+                            color: color,
+                            outlineColor: Cesium.Color.WHITE,
+                            outlineWidth: 1
+                        },
+                        description: `${event.category}: ${event.title}`
+                    });
+                });
+                
+                // Update stats
+                document.getElementById('balloonCount').textContent = data.stats.balloon_count;
+                document.getElementById('eventCount').textContent = data.stats.event_count;
+                document.getElementById('status').textContent = 'ACTIVE';
+                
+                // Update timestamp
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = 
+                    `LAST UPDATE: ${now.toUTCString()}`;
+                
+                document.getElementById('loading').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('status').textContent = 'ERROR';
+                document.getElementById('loading').innerHTML = `
+                    <p style="color: #f00;">ERROR: ${error.message}</p>
+                    <button class="btn" onclick="loadData()">RETRY</button>
+                `;
+            }
+        }
+        
+        // Refresh data
+        function refreshData() {
+            loadData();
+        }
+        
+        // Reset camera
+        function resetView() {
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(0, 20, 20000000),
+                duration: 2
+            });
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            loadData();
+            addUserLocation();  // Add user location marker
+            
+            // Auto-refresh every 5 minutes
+            setInterval(loadData, 5 * 60 * 1000);
+        });
+        
+        // Set initial view
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(0, 20, 20000000)
+        });
+    </script>
+</body>
+</html>
